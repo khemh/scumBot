@@ -28,13 +28,12 @@ vp can swap 1 card with secratary
 This specific file handles the discord user itneraction and main game flow
 """
 #TODO LIST
-#send the problem with the users play in the channel, for example straight isnt consecutive
+#proper error handling eg:send the problem with the users play in the channel, for example straight isnt consecutive
 #make it so that if there are more than 4 people who want to play then the scum gets switched out for them
 #make it so that players can rearrange cards in their hand
-#use images instead of cards when sending to the channel
+#function for image sending to reduce lines
 #make the main player actions into a for loop to reduce number of lines
 
-#when a player finishes and everyone passes fix player order
 
 import discord
 import scumClasses
