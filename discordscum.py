@@ -34,12 +34,14 @@ This specific file handles the discord user itneraction and main game flow
 #use images instead of cards when sending to the channel
 #make the main player actions into a for loop to reduce number of lines
 
-#delete the initial hand after you send another one
+#when a player finishes and everyone passes fix player order
 
 import discord
 import scumClasses
 from scumClasses import CardSuit,CardValue
 import threading
+import io
+from PIL import Image
 
 deck = scumClasses.Deck();
 
@@ -80,6 +82,7 @@ async def mainScum(initialPlayerList,channel,client):
 	#main loop and game logic for the game
 	while(valid == 1):
 		#the first time the game is ran, create the players and deal the deck
+		message = []
 		if loop == 0:
 			player1 = scumClasses.Player(initialPlayerList[0])
 			player2 = scumClasses.Player(initialPlayerList[1])
@@ -87,16 +90,47 @@ async def mainScum(initialPlayerList,channel,client):
 			player4 = scumClasses.Player(initialPlayerList[3])
 			playerList = [player1,player2,player3,player4]
 			deck.dealDeck(playerList)
+			
 			for player in playerList:
 				player.sortCards()	#sort the deck to make it easier for the players,
-				await player.user.send(player.hand)
+				image = Image.open('CardImages\\' + repr(player.hand[0])+ '.png')
+				width,height = image.size
+				image.close()
+				toSend = Image.new('RGBA',(width*len(player.hand),height))
+				i = 0
+				for card in player.hand:
+					
+					image = Image.open('CardImages\\' + repr(card)+ '.png')
+					toSend.paste(image,(i,0))
+					image.close()
+					i = i+width
+				toSend.save('temphand.png','PNG')
+				toSend.close()
+				playermsg = await player.user.send('your hand is:')
+				handmsg = await player.user.send(file = discord.File('temphand.png'))
+				message.append(playermsg)
+				message.append(handmsg)
 		#if its not the first time then there should be trading between players
 		else:
 			
 			deck.dealDeck(playerList)
 			for player in playerList:
 				player.sortCards()
-				await player.user.send(player.hand)
+				image = Image.open('CardImages\\' + repr(player.hand[0])+ '.png')
+				width,height = image.size
+				image.close()
+				toSend = Image.new('RGBA',(width*len(player.hand),height))
+				i = 0
+				for card in player.hand:
+					
+					image = Image.open('CardImages\\' + repr(card)+ '.png')
+					toSend.paste(image,(i,0))
+					image.close()
+					i = i+width
+				toSend.save('temphand.png','PNG')
+				toSend.close()
+				playermsg = await player.user.send('your hand is:')
+				handmsg = await player.user.send(file = discord.File('temphand.png'))
 			#sort out the ranks for trading
 			for x in playerList:
 				if x.rank == 1:
@@ -117,7 +151,23 @@ async def mainScum(initialPlayerList,channel,client):
 			t2.join()
 			for player in playerList:
 				player.sortCards()
-				await player.user.send(player.hand)
+				image = Image.open('CardImages\\' + repr(player.hand[0])+ '.png')
+				width,height = image.size
+				image.close()
+				toSend = Image.new('RGBA',(width*len(player.hand),height))
+				i = 0
+				for card in player.hand:
+					
+					image = Image.open('CardImages\\' + repr(card)+ '.png')
+					toSend.paste(image,(i,0))
+					image.close()
+					i = i+width
+				toSend.save('temphand.png','PNG')
+				toSend.close()
+				playermsg = await player.user.send('your hand is:')
+				handmsg = await player.user.send(file = discord.File('temphand.png'))
+				message.append(playermsg)
+				message.append(handmsg)
 		#the person who starts is the person with the three of clubs
 		for x in playerList:
 			if (scumClasses.Card(CardValue.Three,CardSuit.Clubs)) in x.hand:
@@ -129,10 +179,12 @@ async def mainScum(initialPlayerList,channel,client):
 		playersLeft = 4#set the numbers of players with cards
 		firstTurn = True #everyone has full hands, needed to check if the first play is the 3 of clubs
 		playersIn = 4
+		firstRound = 0
 		while playersLeft > 1:	#players with card left
 		
 			lastPlay = scumClasses.Play([])#the last hand played for checking if the played hand beats it
 			#loop for setting status and players still left
+			playersIn = 0
 			for player in playerList:
 				if player.playStatus != 2:
 					player.playStatus = 0#reset the players status for the next round
@@ -158,27 +210,48 @@ async def mainScum(initialPlayerList,channel,client):
 							#make it so that the user is not in the round anymore and the players in is 1 less
 							player1.playStatus = 1
 							playersIn -= 1
+							validplay = True
 						else:
 							#call the function for playing the cards, this function converts the users string as well as checks if its valud
-							nextLastPlay,validplay = await player1.playCards(userplay.content, firstTurn, nextLastPlay,channel)
+							try:
+								nextLastPlay,validplay = await player1.playCards(userplay.content, firstTurn, nextLastPlay,channel)
+							except AttributeError:
+								validplay = False
 							#if its not valid reset the last play, I think the resetting can go at the beginning of the while loop so that it saves 3 lines
 							if validplay == False:
 								await channel.send("```Please try again with a proper input```")
 								nextLastPlay = scumClasses.Play(lastPlay.cards.copy())
 								nextLastPlay.special = lastPlay.special
-
+							else:
+								#if the play was valid send it in the main channel for people to see
+								await channel.send(f'```played:```')
+								image = Image.open('CardImages\\' + repr(nextLastPlay.cards[0])+ '.png')
+								width,height = image.size
+								image.close()
+								toSend = Image.new('RGBA',(width*len(nextLastPlay.cards),height))
+								i = 0
+								for card in nextLastPlay.cards:
+									
+									image = Image.open('CardImages\\' + repr(card)+ '.png')
+									toSend.paste(image,(i,0))
+									image.close()
+									i = i+width
+								toSend.save('temphand.png','PNG')
+								toSend.close()
+								await channel.send(file = discord.File('temphand.png'))
 					#now that its not the first turn set this to false, this will be set every loop, could put an if statement but it wouldnt improve runtime
 					firstTurn = False
 					#set the last play to be the temporary since it is valid
 					lastPlay.cards = nextLastPlay.cards.copy()
 					lastPlay.special = nextLastPlay.special
-					await channel.send(f'```played: {lastPlay.cards}```')
+					
+					
 					#if the player has 0 cards left
 					if player1.playStatus == 2:
 						#set their rank and then subtract based off of the number of players left, could also subtract and then do 4-players left
 						player1.rank = 5-playersLeft
 						#tell the player the position they finished
-						await channel.send(f'```{player1.display_name} finished in position {player1.rank}```')
+						await channel.send(f'```{player1.user.display_name} finished in position {player1.rank}```')
 						playersLeft -=1
 						#if theres only 1 player left theyre automatically scum
 						if playersLeft == 1:
@@ -189,8 +262,25 @@ async def mainScum(initialPlayerList,channel,client):
 							elif player4.playStatus == 0 or player4.playStatus == 1:
 								player4.rank = 5-playersLeft
 					#send the player their updating hand
-					await player1.user.send(f'your hand is now: {player1.hand}')
-
+					if len(player1.hand) != 13 and len(player1.hand) != 0:
+						await message[0].delete()
+						await message[1].delete()
+						image = Image.open('CardImages\\' + repr(player1.hand[0])+ '.png')
+						width,height = image.size
+						image.close()
+						toSend = Image.new('RGBA',(width*len(player1.hand),height))
+						i = 0
+						for card in player1.hand:
+							
+							image = Image.open('CardImages\\' + repr(card)+ '.png')
+							toSend.paste(image,(i,0))
+							image.close()
+							i = i+width
+						toSend.save('temphand.png','PNG')
+						toSend.close()
+						message[0] = await player1.user.send('player 1 your hand is now:')
+						message[1] = await player1.user.send(file = discord.File('temphand.png'))
+						
 					#if there is still a person in, set their turn as the next one
 					#doesnt matter if the round finished since turns will be overwritten
 					player1.isTurn = False
@@ -200,8 +290,12 @@ async def mainScum(initialPlayerList,channel,client):
 						player3.isTurn = True
 					elif player4.playStatus == 0:
 						player4.isTurn = True
-					
-					
+					elif player2.playStatus == 1:
+						player2.isTurn = True
+					elif player3.playStatus == 1:
+						player3.isTurn = True
+					elif player4.playStatus == 1:
+						player4.isTurn = True
 				#almost exact copy of the previous if statement, the only difference is setting the turns
 				#if I wanted to make it shorter I would use the playerlsit and a for loop so that it would be
 				#if player.isTurn and player.playStatus == 0
@@ -226,27 +320,47 @@ async def mainScum(initialPlayerList,channel,client):
 							#make it so that the user is not in the round anymore and the players in is 1 less
 							player2.playStatus = 1
 							playersIn -= 1
+							validplay = True
 						else:
 							#call the function for playing the cards, this function converts the users string as well as checks if its valud
-							nextLastPlay,validplay = await player2.playCards(userplay.content, firstTurn, nextLastPlay,channel)
+							try:
+								nextLastPlay,validplay = await player2.playCards(userplay.content, firstTurn, nextLastPlay,channel)
+							except AttributeError:
+								validplay = False
 							#if its not valid reset the last play, I think the resetting can go at the beginning of the while loop so that it saves 3 lines
 							if validplay == False:
 								await channel.send("```Please try again with a proper input```")
 								nextLastPlay = scumClasses.Play(lastPlay.cards.copy())
 								nextLastPlay.special = lastPlay.special
+							else:
+								#if the play was valid send it in the main channel for people to see
+								await channel.send(f'```played:```')
+								image = Image.open('CardImages\\' + repr(nextLastPlay.cards[0])+ '.png')
+								width,height = image.size
+								image.close()
+								toSend = Image.new('RGBA',(width*len(nextLastPlay.cards),height))
+								i = 0
+								for card in nextLastPlay.cards:
+									
+									image = Image.open('CardImages\\' + repr(card)+ '.png')
+									toSend.paste(image,(i,0))
+									image.close()
+									i = i+width
+								toSend.save('temphand.png','PNG')
+								toSend.close()
+								await channel.send(file = discord.File('temphand.png'))
 					#now that its not the first turn set this to false, this will be set every loop, could put an if statement but it wouldnt improve runtime
 					firstTurn = False
 					#set the last play to be the temporary since it is valid
 					lastPlay.cards = nextLastPlay.cards.copy()
 					lastPlay.special = nextLastPlay.special
-					#if the play was valid send it in the main channel for people to see
-					await channel.send(f'```played: {lastPlay.cards}```')
+					
 					#if the player has 0 cards left
 					if player2.playStatus == 2:
 						#set their rank and then subtract based off of the number of players left, could also subtract and then do 4-players left
 						player2.rank = 5-playersLeft
 						#tell the player the position they finished
-						await channel.send(f'```{player2.display_name} finished in position {player2.rank}```')
+						await channel.send(f'```{player2.user.display_name} finished in position {player2.rank}```')
 						playersLeft -=1
 						if playersLeft == 1:
 							if player3.playStatus == 0 or player3.playStatus == 1:
@@ -256,9 +370,25 @@ async def mainScum(initialPlayerList,channel,client):
 							elif player1.playStatus == 0 or player1.playStatus == 1:
 								player1.rank = 5-playersLeft
 					
-					await player2.user.send("your hand is now: ")
-					await player2.user.send(player2.hand)
-					
+					if len(player2.hand) != 13 and len(player2.hand) != 0:
+						await message[2].delete()
+						await message[3].delete()
+						image = Image.open('CardImages\\' + repr(player2.hand[0])+ '.png')
+						width,height = image.size
+						image.close()
+						toSend = Image.new('RGBA',(width*len(player2.hand),height))
+						i = 0
+						for card in player2.hand:
+							
+							image = Image.open('CardImages\\' + repr(card)+ '.png')
+							toSend.paste(image,(i,0))
+							image.close()
+							i = i+width
+						toSend.save('temphand.png','PNG')
+						toSend.close()
+						message[2] = await player2.user.send('player 2 your hand is now:')
+						message[3] = await player2.user.send(file = discord.File('temphand.png'))
+						
 					player2.isTurn = False
 					if player3.playStatus == 0:
 						player3.isTurn = True
@@ -266,7 +396,12 @@ async def mainScum(initialPlayerList,channel,client):
 						player4.isTurn = True
 					elif player1.playStatus == 0:
 						player1.isTurn = True
-
+					elif player3.playStatus == 1:
+						player3.isTurn = True
+					elif player4.playStatus == 1:
+						player4.isTurn = True
+					elif player1.playStatus == 1:
+						player1.isTurn = True
 
 
 				elif player3.isTurn and player3.playStatus == 0:
@@ -288,27 +423,47 @@ async def mainScum(initialPlayerList,channel,client):
 							#make it so that the user is not in the round anymore and the players in is 1 less
 							player3.playStatus = 1
 							playersIn -= 1
+							validplay = True
 						else:
 							#call the function for playing the cards, this function converts the users string as well as checks if its valud
-							nextLastPlay,validplay = await player3.playCards(userplay.content, firstTurn, nextLastPlay,channel)
+							try:
+								nextLastPlay,validplay = await player3.playCards(userplay.content, firstTurn, nextLastPlay,channel)
+							except AttributeError:
+								validplay = False
 							#if its not valid reset the last play, I think the resetting can go at the beginning of the while loop so that it saves 3 lines
 							if validplay == False:
 								await channel.send("```Please try again with a proper input```")
 								nextLastPlay = scumClasses.Play(lastPlay.cards.copy())
 								nextLastPlay.special = lastPlay.special
-
+							else:
+								#if the play was valid send it in the main channel for people to see
+								await channel.send(f'```played:```')
+								image = Image.open('CardImages\\' + repr(nextLastPlay.cards[0])+ '.png')
+								width,height = image.size
+								image.close()
+								toSend = Image.new('RGBA',(width*len(nextLastPlay.cards),height))
+								i = 0
+								for card in nextLastPlay.cards:
+									
+									image = Image.open('CardImages\\' + repr(card)+ '.png')
+									toSend.paste(image,(i,0))
+									image.close()
+									i = i+width
+								toSend.save('temphand.png','PNG')
+								toSend.close()
+								await channel.send(file = discord.File('temphand.png'))
 					#now that its not the first turn set this to false, this will be set every loop, could put an if statement but it wouldnt improve runtime
 					firstTurn = False
 					#set the last play to be the temporary since it is valid
 					lastPlay.cards = nextLastPlay.cards.copy()
 					lastPlay.special = nextLastPlay.special
-					await channel.send(f'```played: {lastPlay.cards}```')
+					
 					#if the player has 0 cards left
 					if player3.playStatus == 2:
 						#set their rank and then subtract based off of the number of players left, could also subtract and then do 4-players left
 						player3.rank = 5-playersLeft
 						#tell the player the position they finished
-						await channel.send(f'```{player3.display_name} finished in position {player3.rank}```')
+						await channel.send(f'```{player3.user.display_name} finished in position {player3.rank}```')
 						playersLeft -=1
 						if playersLeft == 1:
 							if player4.playStatus == 0 or player4.playStatus == 1:
@@ -317,8 +472,26 @@ async def mainScum(initialPlayerList,channel,client):
 								player1.rank = 5-playersLeft
 							elif player2.playStatus == 0 or player2.playStatus == 1:
 								player2.rank = 5-playersLeft
-					await player3.user.send("your hand is now: ")
-					await player3.user.send(player3.hand)
+					
+					if len(player3.hand) != 13 and len(player3.hand) != 0:
+						await message[4].delete()
+						await message[5].delete()
+						image = Image.open('CardImages\\' + repr(player3.hand[0])+ '.png')
+						width,height = image.size
+						image.close()
+						toSend = Image.new('RGBA',(width*len(player3.hand),height))
+						i = 0
+						for card in player3.hand:
+							
+							image = Image.open('CardImages\\' + repr(card)+ '.png')
+							toSend.paste(image,(i,0))
+							image.close()
+							i = i+width
+						toSend.save('temphand.png','PNG')
+						toSend.close()
+						message[4] = await player3.user.send('player 3 your hand is now:')
+						message[5] = await player3.user.send(file = discord.File('temphand.png'))
+						
 					
 					player3.isTurn = False
 					if player4.playStatus == 0:
@@ -326,6 +499,12 @@ async def mainScum(initialPlayerList,channel,client):
 					elif player1.playStatus == 0:
 						player1.isTurn = True
 					elif player2.playStatus == 0:
+						player2.isTurn = True
+					elif player4.playStatus == 1:
+						player4.isTurn = True
+					elif player1.playStatus == 1:
+						player1.isTurn = True
+					elif player2.playStatus == 1:
 						player2.isTurn = True
 					#if third automatically assign rank 3 and 4 at the same time
 
@@ -348,28 +527,48 @@ async def mainScum(initialPlayerList,channel,client):
 							#make it so that the user is not in the round anymore and the players in is 1 less
 							player4.playStatus = 1
 							playersIn -= 1
+							validplay = True
 						else:
 							#call the function for playing the cards, this function converts the users string as well as checks if its valud
-							nextLastPlay,validplay = await player4.playCards(userplay.content, firstTurn, nextLastPlay,channel)
+							try:
+								nextLastPlay,validplay = await player4.playCards(userplay.content, firstTurn, nextLastPlay,channel)
+							except AttributeError:
+								validplay = False
 							#if its not valid reset the last play, I think the resetting can go at the beginning of the while loop so that it saves 3 lines
 							if validplay == False:
 								await channel.send("```Please try again with a proper input```")
 								nextLastPlay = scumClasses.Play(lastPlay.cards.copy())
 								nextLastPlay.special = lastPlay.special
-
+							else:
+								#if the play was valid send it in the main channel for people to see
+								await channel.send(f'```played:```')
+								image = Image.open('CardImages\\' + repr(nextLastPlay.cards[0])+ '.png')
+								width,height = image.size
+								image.close()
+								toSend = Image.new('RGBA',(width*len(nextLastPlay.cards),height))
+								i = 0
+								for card in nextLastPlay.cards:
+									
+									image = Image.open('CardImages\\' + repr(card)+ '.png')
+									toSend.paste(image,(i,0))
+									image.close()
+									i = i+width
+								toSend.save('temphand.png','PNG')
+								toSend.close()
+								await channel.send(file = discord.File('temphand.png'))
 
 					#now that its not the first turn set this to false, this will be set every loop, could put an if statement but it wouldnt improve runtime
 					firstTurn = False
 					#set the last play to be the temporary since it is valid
 					lastPlay.cards = nextLastPlay.cards.copy()
 					lastPlay.special = nextLastPlay.special
-					await channel.send(f'```played: {lastPlay.cards}```')
+					
 					#if the player has 0 cards left
 					if player4.playStatus == 2:
 						#set their rank and then subtract based off of the number of players left, could also subtract and then do 4-players left
 						player4.rank = 5-playersLeft
 						#tell the player the position they finished
-						await channel.send(f'```{player4.display_name} finished in position {player4.rank}```')
+						await channel.send(f'```{player4.user.display_name} finished in position {player4.rank}```')
 						playersLeft -=1
 						if playersLeft == 1:
 							if player1.playStatus == 0 or player1.playStatus == 1:
@@ -378,8 +577,26 @@ async def mainScum(initialPlayerList,channel,client):
 								player2.rank = 5-playersLeft
 							elif player3.playStatus == 0 or player3.playStatus == 1:
 								player3.rank = 5-playersLeft
-					await player4.user.send("your hand is now: ")
-					await player4.user.send(player4.hand)
+					
+					if len(player4.hand) != 13 and len(player4.hand) != 0:
+						await message[6].delete()
+						await message[7].delete()
+						image = Image.open('CardImages\\' + repr(player4.hand[0])+ '.png')
+						width,height = image.size
+						image.close()
+						toSend = Image.new('RGBA',(width*len(player4.hand),height))
+						i = 0
+						for card in player4.hand:
+							
+							image = Image.open('CardImages\\' + repr(card)+ '.png')
+							toSend.paste(image,(i,0))
+							image.close()
+							i = i+width
+						toSend.save('temphand.png','PNG')
+						toSend.close()
+						message[6] = await player4.user.send('player 4 your hand is now:')
+						message[7] = await player4.user.send(file = discord.File('temphand.png'))
+						
 					
 					player4.isTurn = False
 					if player1.playStatus == 0:
@@ -387,6 +604,12 @@ async def mainScum(initialPlayerList,channel,client):
 					elif player2.playStatus == 0:
 						player2.isTurn = True
 					elif player3.playStatus == 0:
+						player3.isTurn = True
+					elif player1.playStatus == 1:
+						player1.isTurn = True
+					elif player2.playStatus == 1:
+						player2.isTurn = True
+					elif player3.playStatus == 1:
 						player3.isTurn = True
 					#if third automatically assign rank 3 and 4 at the same time
 			

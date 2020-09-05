@@ -2,8 +2,9 @@ import discord
 import discordscum
 from discord.ext.commands import Bot
 
-BOT_PREFIX = ("s!", "s! ")
 
+BOT_PREFIX = ("s!", "s! ")
+TOKEN='NzQ0Njc4Mzg1MjU0NjYyMjE1.Xzmtyg.v0Afn3TAUfjd_3kf6FZnoJ6daGE'
 client = Bot(command_prefix=BOT_PREFIX)
 
 #list of channel ids
@@ -25,14 +26,20 @@ async def scum(message):
 	def joincheck(m):
 		return m.content == 'join' and m.channel == channel
 		
-	while(len(playerList)< 4):# SHOULD BE 4 FOR 4 PLAYER TESTING
+	while(len(playerList)< 4):
 		#players can join twice
 		usrmsg = await client.wait_for('message', check=joincheck)
 		#if usrmsg.author not in playerList:
 		playerList.append(usrmsg.author)
-	await channel.send('```Players joined: ' + playerList[0].display_name + playerList[1].display_name + playerList[2].display_name + playerList[3].display_name + '```')
+	#TODO add a space between each player
+	await channel.send(f'```Players joined: {playerList[0].display_name} {playerList[1].display_name} {playerList[2].display_name} {playerList[3].display_name}```')
 	#now move on to main scum file
 	await discordscum.mainScum(playerList,channel,client)
+	
+@client.command(name='threeofclubs',help ='shows a three of clubs')
+async def threeofclubs(message):
+	await message.author.send(file = discord.File('temphand.png'))
+
 @client.command(name='rules',help ='displays the rules for the game')
 async def rules(message):
 	channel = message.channel

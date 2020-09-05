@@ -124,12 +124,33 @@ class Player:
 		for i in range(len(userStringArray)):
 			#tokenize the string based on spaces since user input should be something like 3 of clubs
 			tokenString = userStringArray[i].split(' ')
-			if(len(tokenString[0]) != 0):#in case the user puts a space after a , like proper english
-				CardArray = [cardValDict.get(tokenString[0]),cardSuitDict.get(tokenString[-1])]#use the first an last part of the string, avoids anything in between like of in 3 of clubs
-			else:
-				CardArray = [cardValDict.get(tokenString[1]),cardSuitDict.get(tokenString[-1])]#if the first value is a space then use the next one
-			inputCard = Card(CardArray[0],CardArray[1]) #could make it so that the program doesnt use cardarray and just makes the input cards straight away
-			inputArray.append(inputCard)#add the card to the array of cards
+
+			if(len(tokenString) != 0):
+				
+				if(len(tokenString[0]) != 0 and len(tokenString) >1):#in case the user puts a space after a , like proper english
+					CardArray = [cardValDict.get(tokenString[0]),cardSuitDict.get(tokenString[-1])]#use the first an last part of the string, avoids anything in between like of in 3 of clubs
+					inputCard = Card(CardArray[0],CardArray[1])
+					inputArray.append(inputCard)#add the card to the array of cards
+					#dont actually need the == part
+				elif(len(tokenString[0]) != 0 and (len(tokenString) == 1)):
+					value = cardValDict.get(tokenString[0])
+
+					for tempCard in self.hand:
+						if(tempCard.value.value == value.value and tempCard not in inputArray):
+							inputCard = tempCard
+							inputArray.append(inputCard)#add the card to the array of cards
+							break
+				elif(len(tokenString) == 2 and (len(tokenString[0]) == 0)):
+					value = cardValDict.get(tokenString[1])
+					for tempCard in self.hand:
+						if(tempCard.value.value == value.value and tempCard not in inputArray):
+							inputCard = tempCard
+							inputArray.append(inputCard)#add the card to the array of cards
+							break
+				else:
+					CardArray = [cardValDict.get(tokenString[1]),cardSuitDict.get(tokenString[-1])]#if the first value is a space then use the next one
+					inputCard = Card(CardArray[0],CardArray[1])
+					inputArray.append(inputCard)#add the card to the array of cards
 		return inputArray
 	#fucntion for processing the user string and then checking if its valid
 	async def playCards(self, userString, firstTurn, lastPlay,channel):
@@ -161,30 +182,6 @@ class Player:
 	#function for taking cards used for trading at the start of rounds
 	async def takeCards(self,Player,userInput,channel):
 		#translate the cards the user wants to take into a string different translate for this fucntion for ease on the pres/vp just getting a vlue not the exact card
-		userString = userString.lower()
-		userStringArray = userString.split(',')#tokenize the string based on commas
-		inputArray = []#the array that will store the cards from the user input
-		for i in range(len(userStringArray)):
-			#tokenize the string based on spaces since user input should be something like 3 of clubs
-			tokenString = userStringArray[i].split(' ')
-			if(len(tokenString[0]) != 0 and len(tokenString >1)):#in case the user puts a space after a , like proper english
-				CardArray = [cardValDict.get(tokenString[0]),cardSuitDict.get(tokenString[-1])]#use the first an last part of the string, avoids anything in between like of in 3 of clubs
-				inputCard = Card(CardArray[0],CardArray[1])
-			#dont actually need the == part
-			elif(len(tokenString[0]) != 0 and (len(tokenString) == 1)):
-				value = cardValDict.get(tokenString[0])
-				for tempCard in Player.hand:
-					if(Card.value.value == value):
-						inputCard = tempCard
-			elif(len(tokenString) == 2 and (len(tokenString[0]) == 0)):
-				value = cardValDict.get(tokenString[1])
-				for tempCard in Player.hand:
-					if(card.value.value == value):
-						inputCard = tempCard
-			else:
-				CardArray = [cardValDict.get(tokenString[1]),cardSuitDict.get(tokenString[-1])]#if the first value is a space then use the next one
-				inputCard = Card(CardArray[0],CardArray[1]) #could make it so that the program doesnt use cardarray and just makes the input cards straight away
-			inputArray.append(inputCard)#add the card to the array of cards
 			
 		takeCards = self.userStringTranslate(userInput)
 		#check to see if the user is taking the right amount of cards
@@ -335,7 +332,7 @@ class Play:
 			for x in range(0, len(self.cards)):
 				lastHand.cards.append(Card(CardValue.Three,CardSuit.Clubs))
 		#three of clubs is the starting card
-		print(self.cards)
+
 		#if it is the first turn then the three of clubs should be in the hand
 		if firstTurn == True:
 			if (Card(CardValue.Three,CardSuit.Clubs)) not in self.cards:
@@ -351,13 +348,12 @@ class Play:
 				return False
 		else:
 			straight = False 	#flag for if the play is a straight
-			print('checking type')
+
 			if len(lastHand.cards) == 1:#single
 				#if the single is greater than or equal to then its a valid single
 				if len(self.cards) == 1 and (self.cards[0].value > lastHand.cards[0].value or self.cards[0].value == lastHand.cards[0].value):#check to make sure theres only 1 card
 					return True
 				else:
-					print((self.cards[0].value > lastHand.cards[0].value or self.cards[0].value == lastHand.cards[0].value))
 					return False
 				
 			elif len(lastHand.cards) == 2:#double
@@ -371,20 +367,16 @@ class Play:
 				#if the triple is greater than the last triple
 				if(lastHand.cards[0].value == lastHand.cards[1].value):	#check if straight only check two cards because assumption that this next code will work
 					if len(self.cards) == 3 and self.cards[0].value == self.cards[1].value == self.cards[2].value and (self.cards[0].value > lastHand.cards[0].value or self.cards[0].value == lastHand.cards[0].value):
-						print("triple")
 						return True
 					elif firstTurn == True:
 						straight = True
-						print("straight")
 					else:
-						print("bad triple")
-						print(self.cards[0].value == self.cards[1].value == self.cards[2].value)
-						print(self.cards[0].value > lastHand.cards[0].value)
+
 						return False
 				
 				else:	#if last hand was 3 cards and isnt a triple
 					straight = True
-					print("straight")
+
 				
 			else: #straights
 				straight = True
@@ -394,12 +386,11 @@ class Play:
 			for x in range(0,len(self.cards)-1):
 				#cheack if the next card is consecutive
 				if self.cards[x].value.value +1 != self.cards[x+1].value.value:
-					print("not consecutive straight")
+
 					return False
 			if self.cards[-1].value > lastHand.cards[-1].value or self.cards[-1].value == lastHand.cards[-1].value:
-				print("straight")
+
 				return True
-			else:
-				print("not high enough straight")
+
 				return False
 			
