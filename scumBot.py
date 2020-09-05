@@ -4,7 +4,6 @@ from discord.ext.commands import Bot
 
 
 BOT_PREFIX = ("s!", "s! ")
-TOKEN='NzQ0Njc4Mzg1MjU0NjYyMjE1.Xzmtyg.v0Afn3TAUfjd_3kf6FZnoJ6daGE'
 client = Bot(command_prefix=BOT_PREFIX)
 
 #list of channel ids
