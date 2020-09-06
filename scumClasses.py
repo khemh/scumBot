@@ -140,6 +140,15 @@ class Player:
 							inputCard = tempCard
 							inputArray.append(inputCard)#add the card to the array of cards
 							break
+					#create a card just so that it has a temp one then later when it checks if its in hand itll be false
+					if 'inputCard' not in locals():
+						inputCard = Card(CardValue(value),CardSuit(1))
+						inputArray.append(inputCard)
+					else:
+						if (inputCard.value.value !=tempCard.value.value):
+							inputCard = Card(CardValue(inputCard.value.value),CardSuit(1))
+							inputArray.append(inputCard)
+					print(inputCard)
 				elif(len(tokenString) == 2 and (len(tokenString[0]) == 0)):
 					value = cardValDict.get(tokenString[1])
 					for tempCard in self.hand:
@@ -147,6 +156,15 @@ class Player:
 							inputCard = tempCard
 							inputArray.append(inputCard)#add the card to the array of cards
 							break
+					#create a card just so that it has a temp one then later when it checks if its in hand itll be false
+					if 'inputCard' not in locals():
+						inputCard = Card(CardValue(value),CardSuit(1))
+						inputArray.append(inputCard)
+					else:
+						if (inputCard.value.value !=tempCard.value.value):
+							inputCard = Card(CardValue(inputCard.value.value),CardSuit(1))
+							inputArray.append(inputCard)
+					print(inputCard)
 				else:
 					CardArray = [cardValDict.get(tokenString[1]),cardSuitDict.get(tokenString[-1])]#if the first value is a space then use the next one
 					inputCard = Card(CardArray[0],CardArray[1])
@@ -161,7 +179,7 @@ class Player:
 		if(all(elem in self.hand for elem in inputArray)):
 			pass
 		else:
-			await channel.send("at least 1 card isn't in your hand")
+			await channel.send("'''at least 1 card isn't in your hand'''")
 			return lastPlay,False
 			
 		#make the play a play class and then use the is valid function
@@ -326,7 +344,8 @@ class Play:
 	def validPlay(self,firstTurn, lastHand):
 		#if the play is special
 		self.isSpecial()
-		
+		print(lastHand.cards)
+		print(self.cards)
 		if len(lastHand.cards) == 0:#only happens on a new round
 			#set the last play to be full of threes to have something to compare so there arent any additional checks for first turn, this only affects straight logic
 			for x in range(0, len(self.cards)):
@@ -370,6 +389,8 @@ class Play:
 						return True
 					elif firstTurn == True:
 						straight = True
+					elif lastHand.cards[0].suit == lastHand.cards[1].suit:
+						straight = True
 					else:
 
 						return False
@@ -383,14 +404,17 @@ class Play:
 		#if there is a straight
 		if straight == True:
 			#for each card in the straight
+			if len(self.cards)<3:
+				return False
 			for x in range(0,len(self.cards)-1):
 				#cheack if the next card is consecutive
 				if self.cards[x].value.value +1 != self.cards[x+1].value.value:
-
+					print("not consecutive")
 					return False
 			if self.cards[-1].value > lastHand.cards[-1].value or self.cards[-1].value == lastHand.cards[-1].value:
 
 				return True
-
+			else:
+				print("not high enough")
 				return False
 			

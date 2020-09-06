@@ -35,9 +35,12 @@ async def scum(message):
 	#now move on to main scum file
 	await discordscum.mainScum(playerList,channel,client)
 	
-@client.command(name='threeofclubs',help ='shows a three of clubs')
-async def threeofclubs(message):
-	await message.author.send(file = discord.File('temphand.png'))
+@client.command(name='cleardm',help ='clears the bots sent messages in dm')
+async def cleardm(message):
+	await message.author.send('deleting')
+	userdm = message.author.dm_channel
+	async for message in userdm.history(limit=1000):
+		await message.delete()
 
 @client.command(name='rules',help ='displays the rules for the game')
 async def rules(message):
