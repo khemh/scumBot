@@ -71,25 +71,28 @@ async def vpTrade(vp,sec,channel):
 		channel.send(f'```{vp.user.display_name} choose the card you want to give to the scum```')
 		give = vp.giveCards(sec,takeString,channel)
 
-#function that contains the game
+#function for sending an image to player/channel
 async def imageSend(cards,reciever):
+	#get the width of a card(useul if the sie ever changes)
 	image = Image.open('CardImages\\' + repr(cards[0])+ '.png')
 	width,height = image.size
 	image.close()
+	#create a blank image with no background
 	toSend = Image.new('RGBA',(width*len(cards),height))
 	i = 0
 	for card in cards:
-		
+		#open the image that corresponds to the card and paste it in the image to send to the player/channel
 		image = Image.open('CardImages\\' + repr(card)+ '.png')
 		toSend.paste(image,(i,0))
 		image.close()
 		i = i+width
+	#save the image because sending from memory doesn't work 
 	toSend.save('temphand.png','PNG')
 	toSend.close()
-	
+	#send the image
 	handmsg = await reciever.send(file = discord.File('temphand.png'))
 	return handmsg
-
+#function that contains the game
 async def mainScum(initialPlayerList,channel,client):
 	
 	deck.initDeck()#initialize the deck 
@@ -100,14 +103,20 @@ async def mainScum(initialPlayerList,channel,client):
 		#the first time the game is ran, create the players and deal the deck
 		message = []
 		if loop == 0:
+			#initialize the players to the player class
 			player1 = scumClasses.Player(initialPlayerList[0])
 			player2 = scumClasses.Player(initialPlayerList[1])
 			player3 = scumClasses.Player(initialPlayerList[2])
 			player4 = scumClasses.Player(initialPlayerList[3])
 			playerList = [player1,player2,player3,player4]
 			deck.dealDeck(playerList)
+			#sort each users hand and send it to the user
 			
 			for player in playerList:
+				await player.user.send('deleting')
+				userdm = player.user.dm_channel
+				async for todelete in userdm.history(limit=1000):
+					await todelete.delete()
 				player.sortCards()	#sort the deck to make it easier for the players,
 				playermsg = await player.user.send('your hand is:')
 				handmsg = await imageSend(player.hand,player.user)
@@ -115,9 +124,13 @@ async def mainScum(initialPlayerList,channel,client):
 				message.append(handmsg)
 		#if its not the first time then there should be trading between players
 		else:
-			
+			deck.initDeck()
 			deck.dealDeck(playerList)
 			for player in playerList:
+				await player.user.send('deleting')
+				userdm = player.user.dm_channel
+				async for todelete in userdm.history(limit=1000):
+					await todelete.delete()
 				player.sortCards()
 				playermsg = await player.user.send('your hand is:')
 				handmsg = await imageSend(player.hand,player.user)
@@ -172,113 +185,127 @@ async def mainScum(initialPlayerList,channel,client):
 				if player.playStatus != 2:
 					player.playStatus = 0#reset the players status for the next round
 					playersIn += 1#players that havent skipped or finished
-			await channel.send("```new round```")		
-			while playersIn >1:	#while players are still in the round
+			await channel.send("```new round```")
+			playerDoneflag = 0
+			while playersIn >0:	#while players are still in the round
+				playerFlag = 0
 				for player in playerList:
-					#need playersin>1 because it can go from player 0 passing and only player 3 left
-					if player.isTurn and player.playStatus == 0 and playersIn > 1:
-						
-						index = playerList.index(player)
-						print(index)
-						print(playersIn)
-						await channel.send('```' + player.user.display_name+"'s turn```")		#make sure the user knows its their turn maybe better to have @user to make a discord notification
-						validplay = False#for the loop checking if their play was valid
-						
-						#copy the pards into another list
-						#the reason for this is because if the play isnt valid, we dont want lastPlaay to be overwritten since just having = makes nextLastPlay a pointer to lastPlay
-						nextLastPlay = scumClasses.Play(lastPlay.cards.copy())
-						nextLastPlay.special = lastPlay.special
-						#while the user hasn't sent a valid play
-						while validplay == False:
-							#inform the user how to send their play
-							await channel.send('```type the cards you wish to play in the form of value suit, value suit and so on```')
-							#wait for the users play and check if it is actually that user in the right channel
-							userplay = await client.wait_for('message', check=lambda m: m.channel == channel and player.user == m.author)
-							#if the user skipped their turn, you can't skip on the very first turn
-							if userplay.content == 'skip' or userplay.content == 'pass' and firstTurn == False:
-								#make it so that the user is not in the round anymore and the players in is 1 less
-								player.playStatus = 1
-								playersIn -= 1
-								validplay = True
-							else:
-								#call the function for playing the cards, this function converts the users string as well as checks if its valud
-								try:
-									nextLastPlay,validplay = await player.playCards(userplay.content, firstTurn, nextLastPlay,channel)
-								except AttributeError:
-									validplay = False
-								#if its not valid reset the last play, I think the resetting can go at the beginning of the while loop so that it saves 3 lines
-								if validplay == False:
-									await channel.send("```Please try again with a proper input```")
-									nextLastPlay = scumClasses.Play(lastPlay.cards.copy())
-									nextLastPlay.special = lastPlay.special
-								else:
-									#if the play was valid send it in the main channel for people to see
-									await channel.send(f'```played:```')
-									await imageSend(nextLastPlay.cards,channel)
-									
-						#now that its not the first turn set this to false, this will be set every loop, could put an if statement but it wouldnt improve runtime
-						firstTurn = False
-						#set the last play to be the temporary since it is valid
-						lastPlay.cards = nextLastPlay.cards.copy()
-						lastPlay.special = nextLastPlay.special
-						
-						
-						#if the player has 0 cards left
-						if player.playStatus == 2:
-							#set their rank and then subtract based off of the number of players left, could also subtract and then do 4-players left
-							player.rank = 5-playersLeft
-							#tell the player the position they finished
-							await channel.send(f'```{player.user.display_name} finished in position {player.rank}```')
-							playersLeft -= 1
-							playersIn -= 1
-							#if theres only 1 player left theyre automatically scum
-							print(f'players left = {playersLeft}')
-							if playersLeft == 1:
-								if playerList[(index+1)%4].playStatus == 0 or playerList[(index+1)%4].playStatus == 1:
-									playerList[(index+1)%4].rank = 5-playersLeft
-									playerList[(index+1)%4].rank.playStatus = 2
-									await channel.send(f'```{playerList[(index+1)%4].user.display_name} finished in position {player.rank}```')
-									await message[(index+1)*2].delete()
-									await message[(index+1)*2 +1].delete()
-								elif playerList[(index+2)%4].playStatus == 0 or playerList[(index+2)%4].playStatus == 1:
-									playerList[(index+2)%4].rank = 5-playersLeft
-									playerList[(index+2)%4].rank.playStatus = 2
-									await channel.send(f'```{playerList[(index+2)%4].user.display_name} finished in position {player.rank}```')
-									await message[(index+2)*2].delete()
-									await message[(index+2)*2 +1].delete()
-								elif playerList[(index+3)%4].playStatus == 0 or playerList[(index+3)%4].playStatus == 1:
-									playerList[(index+3)%4].rank = 5-playersLeft
-									playerList[(index+3)%4].rank.playStatus = 2
-									await channel.send(f'```{playerList[(index+3)%4].user.display_name} finished in position {player.rank}```')
-									await message[(index+3)*2].delete()
-									await message[(index+3)*2 +1].delete()
-						#send the player their updating hand if they havent passed
-						if player.playStatus != 1:
-							await message[index*2].delete()
-							await message[index*2 +1].delete()
-							#if the player is done then dont send any cards
-							if len(player.hand) != 13 and len(player.hand) != 0:
-								playermsg = await player.user.send('your hand is now:')
-								handmsg = await imageSend(player.hand,player.user)
-								message[index*2] = playermsg
-								message[index*2 +1] = handmsg
+					if (playerDoneflag == 1):
+						for tempplayer in playerList:
+							if tempplayer.playStatus == 0:
+								playerFlag = 1
+
+					if playerFlag == 1 or (playerDoneflag == 0 and playersIn >1):
+						#need playersin>1 because it can go from player 0 passing and only player 3 left
+						if player.isTurn and player.playStatus == 0 and playersIn > 0:
 							
-						#if there is still a person in, set their turn as the next one
-						#doesnt matter if the round finished since turns will be overwritten
-						player.isTurn = False
-						
-						if playerList[(index+1)%4].playStatus == 0:
-							playerList[(index+1)%4].isTurn = True
-						elif playerList[(index+2)%4].playStatus == 0:
-							playerList[(index+2)%4].isTurn = True
-						elif playerList[(index+3)%4].playStatus == 0:
-							playerList[(index+3)%4].isTurn = True
-						elif playerList[(index+1)%4].playStatus == 1 and player.playStatus ==1:
-							playerList[(index+1)%4].isTurn = True
-						elif playerList[(index+2)%4].playStatus == 1 and player.playStatus ==1:
-							playerList[(index+2)%4].isTurn = True
-						elif playerList[(index+3)%4].playStatus == 1 and player.playStatus ==1:
-							playerList[(index+3)%4].isTurn = True
+							index = playerList.index(player)
+							print(index)
+							print(playersIn)
+							await channel.send(player.user.mention +"'s turn")#make sure the user knows its their turn maybe better to have @user to make a discord notification
+							validplay = False#for the loop checking if their play was valid
+							
+							#copy the pards into another list
+							#the reason for this is because if the play isnt valid, we dont want lastPlaay to be overwritten since just having = makes nextLastPlay a pointer to lastPlay
+							nextLastPlay = scumClasses.Play(lastPlay.cards.copy())
+							nextLastPlay.special = lastPlay.special
+							#while the user hasn't sent a valid play
+							while validplay == False:
+								#inform the user how to send their play
+								for tempPlayer in playerList:
+									await channel.send(f'{player.user.name} has {len(player.hand)} cards left')
+								
+								await channel.send('```type the cards you wish to play in the form of value suit, value suit and so on```')
+								#wait for the users play and check if it is actually that user in the right channel
+								userplay = await client.wait_for('message', check=lambda m: m.channel == channel and player.user == m.author)
+								#if the user skipped their turn, you can't skip on the very first turn
+								if userplay.content == 'skip' or userplay.content == 'pass' and firstTurn == False:
+									#make it so that the user is not in the round anymore and the players in is 1 less
+									player.playStatus = 1
+									playersIn -= 1
+									validplay = True
+								else:
+									#call the function for playing the cards, this function converts the users string as well as checks if its valud
+									try:
+										nextLastPlay,validplay = await player.playCards(userplay.content, firstTurn, nextLastPlay,channel)
+									except AttributeError:
+										validplay = False
+									#if its not valid reset the last play, I think the resetting can go at the beginning of the while loop so that it saves 3 lines
+									if validplay == False:
+										await channel.send("```Please try again with a proper input```")
+										nextLastPlay = scumClasses.Play(lastPlay.cards.copy())
+										nextLastPlay.special = lastPlay.special
+									else:
+										#if the play was valid send it in the main channel for people to see
+										await channel.send(f'```played:```')
+										await imageSend(nextLastPlay.cards,channel)
+										
+							#now that its not the first turn set this to false, this will be set every loop, could put an if statement but it wouldnt improve runtime
+							firstTurn = False
+							#set the last play to be the temporary since it is valid
+							lastPlay.cards = nextLastPlay.cards.copy()
+							lastPlay.special = nextLastPlay.special
+							
+							
+							#if the player has 0 cards left
+							if player.playStatus == 2:
+								playerDoneflag = 1
+								#set their rank and then subtract based off of the number of players left, could also subtract and then do 4-players left
+								player.rank = 5-playersLeft
+								#tell the player the position they finished
+								await channel.send(f'```{player.user.display_name} finished in position {player.rank}```')
+								playersLeft -= 1
+								playersIn -= 1
+								#if theres only 1 player left theyre automatically scum
+								print(f'players left = {playersLeft}')
+								if playersLeft == 1:
+									if playerList[(index+1)%4].playStatus == 0 or playerList[(index+1)%4].playStatus == 1:
+										playerList[(index+1)%4].rank = 4
+										playerList[(index+1)%4].playStatus = 2
+										await channel.send(f'```{playerList[(index+1)%4].user.display_name} finished in position {playerList[(index+1)%4].rank}```')
+										await message[((index+1)%4)*2].delete()
+										await message[((index+1)%4)*2 +1].delete()
+									elif playerList[(index+2)%4].playStatus == 0 or playerList[(index+2)%4].playStatus == 1:
+										playerList[(index+2)%4].rank = 4
+										playerList[(index+2)%4].playStatus = 2
+										await channel.send(f'```{playerList[(index+2)%4].user.display_name} finished in position {playerList[(index+2)%4].rank}```')
+										await message[((index+2)%4)*2].delete()
+										await message[((index+2)%4)*2 +1].delete()
+									elif playerList[(index+3)%4].playStatus == 0 or playerList[(index+3)%4].playStatus == 1:
+										playerList[(index+3)%4].rank = 4
+										playerList[(index+3)%4].playStatus = 2
+										await channel.send(f'```{playerList[(index+3)%4].user.display_name} finished in position {playerList[(index+3)%4].rank}```')
+										await message[((index+3)%4)*2].delete()
+										await message[((index+3)%4)*2 +1].delete()
+							#send the player their updating hand if they havent passed
+							if player.playStatus != 1:
+								await message[index*2].delete()
+								await message[index*2 +1].delete()
+								#if the player is done then dont send any cards
+								if len(player.hand) != 13 and len(player.hand) != 0:
+									playermsg = await player.user.send('your hand is now:')
+									handmsg = await imageSend(player.hand,player.user)
+									message[index*2] = playermsg
+									message[index*2 +1] = handmsg
+								
+							#if there is still a person in, set their turn as the next one
+							#doesnt matter if the round finished since turns will be overwritten
+							player.isTurn = False
+							
+							if playerList[(index+1)%4].playStatus == 0:
+								playerList[(index+1)%4].isTurn = True
+							elif playerList[(index+2)%4].playStatus == 0:
+								playerList[(index+2)%4].isTurn = True
+							elif playerList[(index+3)%4].playStatus == 0:
+								playerList[(index+3)%4].isTurn = True
+							elif playerList[(index+1)%4].playStatus == 1 and player.playStatus ==1:
+								playerList[(index+1)%4].isTurn = True
+							elif playerList[(index+2)%4].playStatus == 1 and player.playStatus ==1:
+								playerList[(index+2)%4].isTurn = True
+							elif playerList[(index+3)%4].playStatus == 1 and player.playStatus ==1:
+								playerList[(index+3)%4].isTurn = True
+					else:
+						playersIn = playersIn-1
 					#almost exact copy of the previous if statement, the only difference is setting the turns
 					#if I wanted to make it shorter I would use the playerlsit and a for loop so that it would be
 					#if player.isTurn and player.playStatus == 0

@@ -7,12 +7,20 @@ BOT_PREFIX = ("s!", "s! ")
 client = Bot(command_prefix=BOT_PREFIX)
 
 #list of channel ids
+# make passing non case sensitive
+# when someone finishes make sure everyone passes #in progress
+# proper error handling
+
 
 @client.event
 async def on_ready():
 	#prints out the bot used to see if its running
 	print(f'Logged in as {client.user}')
 
+@client.command(name='at',help = '@s the user')
+async def at(message):
+	channel = message.channel
+	await channel.send(message.author.mention +"'s turn")
 #running the scum program
 @client.command(name='scum',help ='Starts a game of scum type s!rules for the rules of the game')
 async def scum(message):

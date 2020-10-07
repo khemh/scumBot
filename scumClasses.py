@@ -121,6 +121,10 @@ class Player:
 		userString = userString.lower()
 		userStringArray = userString.split(',')#tokenize the string based on commas
 		inputArray = []#the array that will store the cards from the user input
+		print(userStringArray)
+		for card in userStringArray:
+			if len(card) == 0:
+				return inputArray
 		for i in range(len(userStringArray)):
 			#tokenize the string based on spaces since user input should be something like 3 of clubs
 			tokenString = userStringArray[i].split(' ')
