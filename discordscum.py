@@ -38,38 +38,37 @@ import discord
 import scumClasses
 from scumClasses import CardSuit,CardValue
 import threading
-import io
+import asyncio
 from PIL import Image
+
+
 
 deck = scumClasses.Deck();
 
-valid = 1 #while the users still want to play
-loop = 0  #used for making sure that there is no trading on the first loop
-
 #function for the main logic for trading cards at the beginning of a new loop
 
-async def presTrade(pres,scum,channel):
+async def presTrade(pres,scum,channel,client):
 	take = False #for if the cads taken arent in the scums hand
 	while(take == False):	#while taking the cards isnt successful
 		await channel.send(f'```{pres.user.display_name} choose the 2 cards you want from the scum```')
 		takeString = await client.wait_for('message', check=lambda m: m.channel == channel and pres.user == m.author)
-		take = pres.takeCards(scum,takeString,channel)
+		take = await pres.takeCards(scum,takeString,channel)
 	give = False #this part is the same as take but instead you give 2 cards
 	while (give == False):
 		await channel.send(f'```{pres.user.display_name} choose the 2 cards you want to give to the scum```')
 		
-		give = pres.giveCards(scum,takeString,channel)
+		give = await pres.giveCards(scum,takeString,channel)
 #could technically just have these 2 as 1 function only difference is the print statements
-async def vpTrade(vp,sec,channel):
+async def vpTrade(vp,sec,channel,client):
 	take = False
 	while(take == False):
-		channel.send(f'```{vp.user.display_name} choose the card you want from the secretary```')
+		await channel.send(f'```{vp.user.display_name} choose the card you want from the secretary```')
 		takeString = await client.wait_for('message', check=lambda m: m.channel == channel and vp.user == m.author)
-		take = vp.takeCards(sec,takeString,channel)
+		take = await vp.takeCards(sec,takeString,channel)
 	give = False
 	while (give == False):
-		channel.send(f'```{vp.user.display_name} choose the card you want to give to the scum```')
-		give = vp.giveCards(sec,takeString,channel)
+		await channel.send(f'```{vp.user.display_name} choose the card you want to give to the scum```')
+		give = await vp.giveCards(sec,takeString,channel)
 
 #function for sending an image to player/channel
 async def imageSend(cards,reciever):
@@ -98,6 +97,7 @@ async def mainScum(initialPlayerList,channel,client):
 	deck.initDeck()#initialize the deck 
 	playerList = []#initialize the list of players
 	valid = 1
+	loop = 0  #used for making sure that there is no trading on the first loop
 	#main loop and game logic for the game
 	while(valid == 1):
 		#the first time the game is ran, create the players and deal the deck
@@ -113,10 +113,14 @@ async def mainScum(initialPlayerList,channel,client):
 			#sort each users hand and send it to the user
 			
 			for player in playerList:
-				await player.user.send('deleting')
-				userdm = player.user.dm_channel
-				async for todelete in userdm.history(limit=1000):
-					await todelete.delete()
+				#auto clear dms
+				#sends the message to the user to create the dm channel to delete the messages
+				# await player.user.send('deleting')
+				# userdm = player.user.dm_channel
+				# async for todelete in userdm.history(limit=1000):
+					# await todelete.delete()
+				
+				
 				player.sortCards()	#sort the deck to make it easier for the players,
 				playermsg = await player.user.send('your hand is:')
 				handmsg = await imageSend(player.hand,player.user)
@@ -127,10 +131,14 @@ async def mainScum(initialPlayerList,channel,client):
 			deck.initDeck()
 			deck.dealDeck(playerList)
 			for player in playerList:
-				await player.user.send('deleting')
-				userdm = player.user.dm_channel
-				async for todelete in userdm.history(limit=1000):
-					await todelete.delete()
+				#auto clear dms
+				#sends the message to the user to create the dm channel to delete the messages
+				# await player.user.send('deleting')
+				# userdm = player.user.dm_channel
+				# async for todelete in userdm.history(limit=1000):
+					# await todelete.delete()
+				
+				
 				player.sortCards()
 				playermsg = await player.user.send('your hand is:')
 				handmsg = await imageSend(player.hand,player.user)
@@ -139,7 +147,7 @@ async def mainScum(initialPlayerList,channel,client):
 			#sort out the ranks for trading
 			for x in playerList:
 				if x.rank == 1:
-					president = x
+					pres = x
 				elif x.rank == 2:
 					vp = x
 				elif x.rank == 3:
@@ -148,19 +156,22 @@ async def mainScum(initialPlayerList,channel,client):
 					scum = x
 			#use multithreading so that the trading happens at the same time
 			#this is just for saving time trading in case people are impatient
-			t1 = threading.Thread(target = presTrade,args=(pres,scum,channel))
-			t2 = threading.Thread(target = vpTrade,args=(vp,sec,channel))
+			#use asyncio run because you cant thread an asynchronous fucntion by doing target=await function
+			t1 = threading.Thread(target=asyncio.run,args = (presTrade(pres,scum,channel,client),))
+			t2 = threading.Thread(target=asyncio.run,args = (vpTrade(vp,sec,channel,client),))
 			t1.start()
 			t2.start()
 			t1.join()
 			t2.join()
 			j = 0
+			await channel.send("```trading complete```")
 			for player in playerList:
+				player.playStatus = 0
 				player.sortCards()
 				playermsg = await player.user.send('your hand is now:')
 				handmsg = await imageSend(player.hand,player.user)
-				message[j].delete()
-				message[j+1].delete()
+				await message[j].delete()
+				await message[j+1].delete()
 				message[j] = playermsg
 				message[j+1] = handmsg
 				j = j+2
@@ -174,34 +185,26 @@ async def mainScum(initialPlayerList,channel,client):
 				x.isTurn = False
 		playersLeft = 4#set the numbers of players with cards
 		firstTurn = True #everyone has full hands, needed to check if the first play is the 3 of clubs
-		playersIn = 4
 		firstRound = 0
 		while playersLeft > 1:	#players with card left
 		
 			lastPlay = scumClasses.Play([])#the last hand played for checking if the played hand beats it
 			#loop for setting status and players still left
-			playersIn = 0
+			playersIn = playersLeft
 			for player in playerList:
-				if player.playStatus != 2:
-					player.playStatus = 0#reset the players status for the next round
-					playersIn += 1#players that havent skipped or finished
+				if player.playStatus == 1:
+					player.playStatus = 0
 			await channel.send("```new round```")
 			playerDoneflag = 0
-			while playersIn >0:	#while players are still in the round
-				playerFlag = 0
+			while (playerDoneflag == 1 and playersIn >0) or (playerDoneflag == 0 and playersIn >1) and playersLeft >1:	#while players are still in the round
 				for player in playerList:
-					if (playerDoneflag == 1):
-						for tempplayer in playerList:
-							if tempplayer.playStatus == 0:
-								playerFlag = 1
+					
+					if (playerDoneflag == 1 and playersIn >0) or (playerDoneflag == 0 and playersIn >1) and playersLeft >1:
 
-					if playerFlag == 1 or (playerDoneflag == 0 and playersIn >1):
-						#need playersin>1 because it can go from player 0 passing and only player 3 left
-						if player.isTurn and player.playStatus == 0 and playersIn > 0:
+						
+						if player.isTurn and player.playStatus == 0:
 							
 							index = playerList.index(player)
-							print(index)
-							print(playersIn)
 							await channel.send(player.user.mention +"'s turn")#make sure the user knows its their turn maybe better to have @user to make a discord notification
 							validplay = False#for the loop checking if their play was valid
 							
@@ -213,7 +216,7 @@ async def mainScum(initialPlayerList,channel,client):
 							while validplay == False:
 								#inform the user how to send their play
 								for tempPlayer in playerList:
-									await channel.send(f'{player.user.name} has {len(player.hand)} cards left')
+									await channel.send(f'{tempPlayer.user.name} has {len(tempPlayer.hand)} cards left')
 								
 								await channel.send('```type the cards you wish to play in the form of value suit, value suit and so on```')
 								#wait for the users play and check if it is actually that user in the right channel
@@ -246,10 +249,23 @@ async def mainScum(initialPlayerList,channel,client):
 							lastPlay.cards = nextLastPlay.cards.copy()
 							lastPlay.special = nextLastPlay.special
 							
-							
+							#send the player their updating hand if they havent passed
+							if player.playStatus == 0:
+								playerDoneflag = 0
+								await message[index*2].delete()
+								await message[index*2 +1].delete()
+								#if the player is done then dont send any cards
+								if len(player.hand) != 13 and len(player.hand) != 0:
+									playermsg = await player.user.send('your hand is now:')
+									handmsg = await imageSend(player.hand,player.user)
+									message[index*2] = playermsg
+									message[index*2 +1] = handmsg
+								
 							#if the player has 0 cards left
 							if player.playStatus == 2:
 								playerDoneflag = 1
+								await message[index*2].delete()
+								await message[index*2 +1].delete()
 								#set their rank and then subtract based off of the number of players left, could also subtract and then do 4-players left
 								player.rank = 5-playersLeft
 								#tell the player the position they finished
@@ -257,8 +273,9 @@ async def mainScum(initialPlayerList,channel,client):
 								playersLeft -= 1
 								playersIn -= 1
 								#if theres only 1 player left theyre automatically scum
-								print(f'players left = {playersLeft}')
+
 								if playersLeft == 1:
+									playersIn -= 1
 									if playerList[(index+1)%4].playStatus == 0 or playerList[(index+1)%4].playStatus == 1:
 										playerList[(index+1)%4].rank = 4
 										playerList[(index+1)%4].playStatus = 2
@@ -277,20 +294,12 @@ async def mainScum(initialPlayerList,channel,client):
 										await channel.send(f'```{playerList[(index+3)%4].user.display_name} finished in position {playerList[(index+3)%4].rank}```')
 										await message[((index+3)%4)*2].delete()
 										await message[((index+3)%4)*2 +1].delete()
-							#send the player their updating hand if they havent passed
-							if player.playStatus != 1:
-								await message[index*2].delete()
-								await message[index*2 +1].delete()
-								#if the player is done then dont send any cards
-								if len(player.hand) != 13 and len(player.hand) != 0:
-									playermsg = await player.user.send('your hand is now:')
-									handmsg = await imageSend(player.hand,player.user)
-									message[index*2] = playermsg
-									message[index*2 +1] = handmsg
+							
 								
 							#if there is still a person in, set their turn as the next one
 							#doesnt matter if the round finished since turns will be overwritten
-							player.isTurn = False
+							if playersIn >1 or player.playStatus == 1:
+								player.isTurn = False
 							
 							if playerList[(index+1)%4].playStatus == 0:
 								playerList[(index+1)%4].isTurn = True
@@ -298,20 +307,14 @@ async def mainScum(initialPlayerList,channel,client):
 								playerList[(index+2)%4].isTurn = True
 							elif playerList[(index+3)%4].playStatus == 0:
 								playerList[(index+3)%4].isTurn = True
-							elif playerList[(index+1)%4].playStatus == 1 and player.playStatus ==1:
-								playerList[(index+1)%4].isTurn = True
-							elif playerList[(index+2)%4].playStatus == 1 and player.playStatus ==1:
-								playerList[(index+2)%4].isTurn = True
-							elif playerList[(index+3)%4].playStatus == 1 and player.playStatus ==1:
-								playerList[(index+3)%4].isTurn = True
-					else:
-						playersIn = playersIn-1
-					#almost exact copy of the previous if statement, the only difference is setting the turns
-					#if I wanted to make it shorter I would use the playerlsit and a for loop so that it would be
-					#if player.isTurn and player.playStatus == 0
-					#then settting turns would be for i in len(playerList) if player[current user + i %4] set the turn same for rank
-					#and you would keep track of the players index using index = index + 1 %4
-				
+							elif playerDoneflag == 1:
+								if playerList[(index+1)%4].playStatus == 1 and player.playStatus !=0:
+									playerList[(index+1)%4].isTurn = True
+								elif playerList[(index+2)%4].playStatus == 1 and player.playStatus !=0:
+									playerList[(index+2)%4].isTurn = True
+								elif playerList[(index+3)%4].playStatus == 1 and player.playStatus !=0:
+									playerList[(index+3)%4].isTurn = True
+							
 				
 		#check if the users want to play another round
 		await channel.send("```play another round?```")
@@ -319,3 +322,5 @@ async def mainScum(initialPlayerList,channel,client):
 		response = await client.wait_for('message')
 		if (response == 'no'):
 			valid = 0
+		else:
+			loop = 1

@@ -4,13 +4,15 @@ from discord.ext.commands import Bot
 
 
 BOT_PREFIX = ("s!", "s! ")
+TOKEN =
+
 client = Bot(command_prefix=BOT_PREFIX)
 
 #list of channel ids
 # make passing non case sensitive
-# when someone finishes make sure everyone passes #in progress
+# thread trading currently stuck with Future <Future pending> attached to a different loop
 # proper error handling
-
+#
 
 @client.event
 async def on_ready():

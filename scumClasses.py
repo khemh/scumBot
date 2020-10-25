@@ -183,7 +183,7 @@ class Player:
 		if(all(elem in self.hand for elem in inputArray)):
 			pass
 		else:
-			await channel.send("'''at least 1 card isn't in your hand'''")
+			await channel.send("```at least 1 card isn't in your hand```")
 			return lastPlay,False
 			
 		#make the play a play class and then use the is valid function
