@@ -4,7 +4,7 @@ from discord.ext.commands import Bot
 
 
 BOT_PREFIX = ("s!", "s! ")
-TOKEN =
+TOKEN = 
 
 client = Bot(command_prefix=BOT_PREFIX)
 
