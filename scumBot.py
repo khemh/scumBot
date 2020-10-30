@@ -10,9 +10,9 @@ client = Bot(command_prefix=BOT_PREFIX)
 
 #list of channel ids
 # make passing non case sensitive
-# thread trading currently stuck with Future <Future pending> attached to a different loop
 # proper error handling
-#
+# allow people to rearrange cards
+# set the persons turn properly if theres 2 people in out of 4 and 1 person finishes
 
 @client.event
 async def on_ready():
@@ -43,6 +43,12 @@ async def scum(message):
 	#TODO add a space between each player
 	await channel.send(f'```Players joined: {playerList[0].display_name} {playerList[1].display_name} {playerList[2].display_name} {playerList[3].display_name}```')
 	#now move on to main scum file
+	#delete the dms first just in case theres leftover cards
+	for player in playerList:
+		await player.send('deleting')
+		userdm = player.dm_channel
+		async for todelete in userdm.history(limit=1000):
+			await todelete.delete()
 	await discordscum.mainScum(playerList,channel,client)
 	
 @client.command(name='cleardm',help ='clears the bots sent messages in dm')
@@ -75,7 +81,9 @@ second gets vice president
 third gets secretary
 fourth gets scum
 at the beginning of the next round the president can swap 2 cards with scum
-vp can swap 1 card with secratary```""")
+vp can swap 1 card with secratary
+
+Play a hand using the form value,value,etc or value suit,value suit for example 3,3 or 3 c, 3 s or 3 of clubs, 3 of spades```""")
 
 client.run(TOKEN)
 #client.close()

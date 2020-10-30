@@ -134,7 +134,7 @@ class Player:
 					#dont actually need the == part
 				elif(len(tokenString[0]) != 0 and (len(tokenString) == 1)):
 					value = cardValDict.get(tokenString[0])
-
+					print(value)
 					for tempCard in self.hand:
 						if(tempCard.value.value == value.value and tempCard not in inputArray):
 							inputCard = tempCard
@@ -173,6 +173,7 @@ class Player:
 		i = 0
 		dupe = False
 		size = len(inputArray)-1
+		print(inputArray)
 		while i < size:
 			j = i+1
 			while j <= size:
@@ -183,6 +184,7 @@ class Player:
 			i = i+1
 		if dupe:
 			inputArray = []
+		print(inputArray)	
 		return inputArray
 	#fucntion for processing the user string and then checking if its valid
 	async def playCards(self, userString, firstTurn, lastPlay,channel):
